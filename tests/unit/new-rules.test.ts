@@ -589,6 +589,16 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('server.ts', api)])).toBeDefined();
   });
 
+  it('should check for database connection pooling configuration', () => {
+    const db = 'const conn = new Database(connectionString);';
+    expect(idsFor([f('lib/database.ts', db)])).toBeDefined();
+  });
+
+  it('should detect N+1 query problems and inefficient data fetching', () => {
+    const loop = 'for (const user of users) { const posts = db.query("SELECT * FROM posts WHERE user_id = " + user.id); }';
+    expect(idsFor([f('lib/data-loader.ts', loop)])).toBeDefined();
+  });
+
 
 });
 
