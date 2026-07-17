@@ -161,14 +161,16 @@ layout and print styles.
 - **Unit** (`tests/unit`) — redaction, scoring, path-safety, GitHub URL parsing,
   every rule (including the quality wave), scan config parsing, insights
   (effort/projections/quick wins), fingerprints, exports (SARIF/HTML/badge/CSV/
-  XML), the rate limiter and history list operations.
+  XML), report diffing, the rate limiter and history list operations.
 - **Integration** (`tests/integration`) — the engine end-to-end on the demo
   project (including in-repo config suppression), in-memory ZIP loading, exports,
   the fix-plan fallback, and the API route handlers invoked as plain functions
-  (rules/health/badge/scan/fix-plan, including the 429 path).
+  (rules/health/badge/openapi/scan/fix-plan, including the 429 path and OpenAPI
+  `$ref` integrity).
 - **E2E** (`e2e/smoke.spec.ts`) — Playwright drives the built app: demo scan,
   filters, sorting, expand/collapse, insights, rule catalog, exports (download),
-  scan history + delta, keyboard shortcut and the GET API endpoints.
+  scan history + delta, report comparison, keyboard shortcuts, the skip link,
+  and the GET API endpoints (including OpenAPI spec and web manifest).
 
 CI (`.github/workflows/ci.yml`) runs lint → typecheck → test → build → Playwright
 on Node 20 for every push and PR to `main`.

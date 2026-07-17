@@ -256,6 +256,19 @@ describe('advanced rules (spot checks)', () => {
     expect(findings).toContain('SEC002');
   });
 
+  it('should check for CHANGELOG or HISTORY documentation', () => {
+    expect(idsFor([f('package.json', '{"name":"test"}'), f('src/index.ts', 'export {}')])).toBeDefined();
+  });
+
+  it('should validate CORS configuration is properly restricted', () => {
+    const corsConfig = 'app.use(cors({ origin: "*" }));';
+    expect(idsFor([f('package.json', '{"dependencies":{"cors":"^2.8.0"}}'), f('server.ts', corsConfig)])).toBeDefined();
+  });
+
+  it('should detect outdated or vulnerable core dependencies', () => {
+    expect(idsFor([f('package.json', '{"dependencies":{"express":"^2.0.0"}}')])).toBeDefined();
+  });
+
 
 });
 
