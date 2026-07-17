@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p .claude/assist)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\User\\LaunchGuard\\.claude"
+    ]
+  }
+}
