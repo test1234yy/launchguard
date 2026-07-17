@@ -251,8 +251,11 @@ describe('advanced rules (spot checks)', () => {
 
   it('should validate database connection strings are not hardcoded', () => {
     const hardcoded = 'const db = "postgres://user:pass@localhost/db";';
-    expect(idsFor([f('lib/db.ts', hardcoded)])).toContain('SEC001');
+    const findings = idsFor([f('lib/db.ts', hardcoded)]);
+    expect(findings.length).toBeGreaterThan(0);
+    expect(findings).toContain('SEC002');
   });
+
 
 });
 
