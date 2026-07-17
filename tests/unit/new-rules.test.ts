@@ -569,6 +569,26 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('lib/setup.ts', monitoring)])).toBeDefined();
   });
 
+  it('should check for input validation framework integration', () => {
+    const noValidation = 'app.post("/api/user", (req, res) => { db.insert(req.body); });';
+    expect(idsFor([f('server.ts', noValidation)])).toBeDefined();
+  });
+
+  it('should validate role-based access control is enforced', () => {
+    const noRBAC = 'export default function adminPanel(req, res) {\n  res.json(sensitiveData);\n}';
+    expect(idsFor([f('pages/api/admin/data.ts', noRBAC)])).toBeDefined();
+  });
+
+  it('should check for API rate limiting and request throttling', () => {
+    const noLimit = 'export default function handler(req, res) {\n  processRequest();\n}';
+    expect(idsFor([f('pages/api/search.ts', noLimit)])).toBeDefined();
+  });
+
+  it('should validate API versioning strategy for backward compatibility', () => {
+    const api = 'app.get("/api/users", (req, res) => { res.json(users); });';
+    expect(idsFor([f('server.ts', api)])).toBeDefined();
+  });
+
 
 });
 
