@@ -411,6 +411,41 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('lib/string-utils.ts', encoding)])).toBeDefined();
   });
 
+  it('should detect floating point comparisons without tolerance', () => {
+    const compare = 'if (price === 0.1 + 0.2) { /* unreliable */ }';
+    expect(idsFor([f('lib/calculations.ts', compare)])).toBeDefined();
+  });
+
+  it('should flag direct array mutations in state management', () => {
+    const mutation = 'const newState = state; newState.items.push(item);';
+    expect(idsFor([f('store/reducer.ts', mutation)])).toBeDefined();
+  });
+
+  it('should detect shallow object comparison when deep comparison is needed', () => {
+    const compare = 'if (objA === objB) { /* shallow compare */ }';
+    expect(idsFor([f('lib/comparison.ts', compare)])).toBeDefined();
+  });
+
+  it('should flag unhandled promise rejections', () => {
+    const promise = 'fetchData().then(data => process(data));';
+    expect(idsFor([f('lib/async-utils.ts', promise)])).toBeDefined();
+  });
+
+  it('should detect hidden side effects in pure function implementations', () => {
+    const impure = 'function calculate(x) { globalCounter++; return x * 2; }';
+    expect(idsFor([f('lib/math.ts', impure)])).toBeDefined();
+  });
+
+  it('should validate event listeners are properly removed on cleanup', () => {
+    const listener = 'window.addEventListener("load", handler); // No removal';
+    expect(idsFor([f('lib/events.ts', listener)])).toBeDefined();
+  });
+
+  it('should detect DOM content injection vulnerabilities', () => {
+    const inject = 'document.body.innerHTML += userContent;';
+    expect(idsFor([f('components/Editor.tsx', inject)])).toBeDefined();
+  });
+
 
 });
 
