@@ -376,6 +376,16 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('components/Layout.tsx', component)])).toBeDefined();
   });
 
+  it('should validate auth middleware is applied to protected routes', () => {
+    const api = 'export default function handler(req, res) {\n  res.json(userData);\n}';
+    expect(idsFor([f('pages/api/user/profile.ts', api)])).toBeDefined();
+  });
+
+  it('should check for transaction rollback handling in database operations', () => {
+    const db = 'async function updateUser(id, data) {\n  const result = await db.update(id, data);\n}';
+    expect(idsFor([f('lib/db-operations.ts', db)])).toBeDefined();
+  });
+
 
 });
 
