@@ -506,6 +506,11 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('pages/api/redirect.ts', injection)])).toBeDefined();
   });
 
+  it('should flag unsafe object deserialization from untrusted sources', () => {
+    const deserialize = 'const obj = JSON.parse(userInput);';
+    expect(idsFor([f('lib/deserialize.ts', deserialize)])).toBeDefined();
+  });
+
 
 });
 
