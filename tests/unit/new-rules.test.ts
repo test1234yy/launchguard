@@ -290,6 +290,15 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('package.json', pkg1), f('packages/b/package.json', pkg2)])).toBeDefined();
   });
 
+  it('should validate TypeScript definitions are properly exported', () => {
+    const index = 'export function process(data: any): any { return data; }';
+    expect(idsFor([f('index.ts', index)])).toBeDefined();
+  });
+
+  it('should check that build artifacts are not committed to version control', () => {
+    expect(idsFor([f('dist/bundle.js', 'console.log("bundle");'), f('package.json', '{}')])).toBeDefined();
+  });
+
 
 });
 
