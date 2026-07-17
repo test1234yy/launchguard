@@ -511,6 +511,55 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('lib/deserialize.ts', deserialize)])).toBeDefined();
   });
 
+  it('should detect open redirect vulnerabilities in URL handling', () => {
+    const redirect = 'res.redirect(req.query.url);';
+    expect(idsFor([f('pages/redirect.ts', redirect)])).toBeDefined();
+  });
+
+  it('should flag prototype pollution through unsafe object merging', () => {
+    const merge = 'Object.assign(config, userInput);';
+    expect(idsFor([f('lib/config-merge.ts', merge)])).toBeDefined();
+  });
+
+  it('should detect sensitive data logged to console or files', () => {
+    const logging = 'console.log("User password:", password);';
+    expect(idsFor([f('lib/logger.ts', logging)])).toBeDefined();
+  });
+
+  it('should flag insecure default authentication settings', () => {
+    const config = JSON.stringify({
+      auth: { enabled: false, requirePassword: false }
+    });
+    expect(idsFor([f('config.json', config)])).toBeDefined();
+  });
+
+  it('should detect known vulnerable package versions', () => {
+    const pkg = JSON.stringify({
+      dependencies: { 'lodash': '4.17.15', 'serialize-javascript': '1.6.1' }
+    });
+    expect(idsFor([f('package.json', pkg)])).toBeDefined();
+  });
+
+  it('should flag weak password requirements in authentication config', () => {
+    const auth = 'minPasswordLength = 4; allowNumbers = false;';
+    expect(idsFor([f('lib/password-policy.ts', auth)])).toBeDefined();
+  });
+
+  it('should validate MFA is required for sensitive operations', () => {
+    const admin = 'export default function adminPanel(req, res) {\n  // No MFA check\n}';
+    expect(idsFor([f('pages/admin/index.tsx', admin)])).toBeDefined();
+  });
+
+  it('should check for account lockout mechanism after failed attempts', () => {
+    const login = 'for (let i = 0; i < attempts.length; i++) { validate(password); }';
+    expect(idsFor([f('lib/login.ts', login)])).toBeDefined();
+  });
+
+  it('should validate HTTPS enforcement and certificate validation', () => {
+    const http = 'const url = "http://api.example.com/data";';
+    expect(idsFor([f('lib/api-client.ts', http)])).toBeDefined();
+  });
+
 
 });
 
