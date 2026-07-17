@@ -236,6 +236,24 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('tsconfig.json', tsconfig)])).toBeDefined();
   });
 
+  it('should verify ESLint configuration exists in projects', () => {
+    const eslintConfig = JSON.stringify({
+      extends: 'next/core-web-vitals',
+      rules: { 'no-console': 'warn' }
+    });
+    expect(idsFor([f('package.json', '{"name":"test"}'), f('.eslintrc.json', eslintConfig)])).toBeDefined();
+  });
+
+  it('should check for rate limiting middleware in API handlers', () => {
+    const apiRoute = 'export default function handler(req, res) {\n  res.status(200).json({});\n}';
+    expect(idsFor([f('pages/api/endpoint.ts', apiRoute)])).toBeDefined();
+  });
+
+  it('should validate database connection strings are not hardcoded', () => {
+    const hardcoded = 'const db = "postgres://user:pass@localhost/db";';
+    expect(idsFor([f('lib/db.ts', hardcoded)])).toContain('SEC001');
+  });
+
 });
 
 describe('advanced environment rules', () => {
