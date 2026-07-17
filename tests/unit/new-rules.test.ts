@@ -226,6 +226,11 @@ describe('advanced environment rules', () => {
   it('ADV004 should flag projects without .env.example or .env.sample', () => {
     expect(idsFor([f('package.json', '{"name":"test"}'), f('.env', 'API_KEY=secret')])).toBeDefined();
   });
+
+  it('should validate that sensitive files are not accidentally committed', () => {
+    expect(idsFor([f('.env.local', 'SECRET_KEY=abc123'), f('package.json', '{}')])).toContain('SEC001');
+  });
+
 });
 
 describe('backlog wave rules (SEC007, CI007, DEP007, QUA009)', () => {

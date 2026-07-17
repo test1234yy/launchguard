@@ -1,6 +1,6 @@
 {
   "name": "launchguard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Deployment readiness scanner for Next.js and Node.js projects",
   "license": "MIT",
