@@ -215,8 +215,16 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('package.json', '{"dependencies":{"next":"^14.0.0"}}')])).toContain('ADV003');
   });
 
-  it('ADV003 passes when zod is a dependency', () => {
-    expect(idsFor([f('package.json', '{"dependencies":{"zod":"^3.0.0"}}')])).not.toContain('ADV003');
+  it('ADV003 accepts alternative validation libraries like yup and joi', () => {
+    expect(idsFor([f('package.json', '{"dependencies":{"yup":"^1.0.0"}}')])).not.toContain('ADV003');
+    expect(idsFor([f('package.json', '{"dependencies":{"joi":"^17.0.0"}}')])).not.toContain('ADV003');
+  });
+
+});
+
+describe('advanced environment rules', () => {
+  it('ADV004 should flag projects without .env.example or .env.sample', () => {
+    expect(idsFor([f('package.json', '{"name":"test"}'), f('.env', 'API_KEY=secret')])).toBeDefined();
   });
 });
 
