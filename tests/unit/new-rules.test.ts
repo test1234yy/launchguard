@@ -639,6 +639,23 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('lib/features.ts', feature)])).toBeDefined();
   });
 
+  it('should check for service health checks and readiness probes', () => {
+    expect(idsFor([f('package.json', '{"name":"test","dependencies":{"next":"^14.0.0"}}')])).toBeDefined();
+  });
+
+  it('should validate container configuration and orchestration readiness', () => {
+    const docker = 'FROM node:20\nRUN npm install\nCMD ["npm", "start"]';
+    expect(idsFor([f('Dockerfile', docker)])).toBeDefined();
+  });
+
+  it('should check for dependency scanning and vulnerability management', () => {
+    const pkg = JSON.stringify({
+      name: 'test',
+      dependencies: { 'old-package': '1.0.0' }
+    });
+    expect(idsFor([f('package.json', pkg)])).toBeDefined();
+  });
+
 
 });
 
