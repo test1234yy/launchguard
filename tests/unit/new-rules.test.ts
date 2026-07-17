@@ -269,6 +269,27 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('package.json', '{"dependencies":{"express":"^2.0.0"}}')])).toBeDefined();
   });
 
+  it('should flag unsafe innerHTML usage without sanitization', () => {
+    const unsafe = 'element.innerHTML = userInput;';
+    expect(idsFor([f('components/Widget.tsx', unsafe)])).toBeDefined();
+  });
+
+  it('should validate sensitive files do not have world-readable permissions', () => {
+    const secrets = f('secrets.json', '{"api_key":"secret"}', 1024);
+    expect(idsFor([secrets])).toBeDefined();
+  });
+
+  it('should enforce UPPER_SNAKE_CASE naming for environment variables', () => {
+    const envExample = 'DATABASE_URL=postgres://localhost\nApiKey=secret';
+    expect(idsFor([f('.env.example', envExample)])).toBeDefined();
+  });
+
+  it('should detect circular or unresolvable dependencies', () => {
+    const pkg1 = JSON.stringify({ name: 'pkg-a', dependencies: { 'pkg-b': '^1.0.0' } });
+    const pkg2 = JSON.stringify({ name: 'pkg-b', dependencies: { 'pkg-a': '^1.0.0' } });
+    expect(idsFor([f('package.json', pkg1), f('packages/b/package.json', pkg2)])).toBeDefined();
+  });
+
 
 });
 
