@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "description": "Deployment readiness scanner for Next.js and Node.js projects",
+  "license": "MIT",
+  "homepage": "https://github.com/test1234yy/launchguard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/test1234yy/launchguard.git"
+  },
   "engines": {
     "node": ">=20"
   },
