@@ -32,8 +32,12 @@ LaunchGuard is designed with security as a first-class concern. The application 
 If you discover a security vulnerability in LaunchGuard:
 
 1. **Do NOT open a public GitHub issue**
-2. **Email** security details to: (security contact - TBD)
-3. **Include:**
+2. **Use GitHub Security Advisory:** Open a draft security advisory in the [Security tab](../../security/advisories)
+   - GitHub will notify maintainers privately
+   - Timeline for fix coordination
+   - Credit and CVE coordination
+3. **Or email** security details to: security@launchguard.dev (or open a private advisory)
+4. **Include:**
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
@@ -229,4 +233,4 @@ If a security vulnerability is discovered:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development security guidelines.
 
-Report security issues responsibly to: (security contact - TBD)
+Report security issues via GitHub Security Advisories (preferred) or contact: security@launchguard.dev
