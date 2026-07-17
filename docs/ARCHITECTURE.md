@@ -103,6 +103,10 @@ deterministic: the same snapshot always yields the same report.
   escaped content) suitable for tickets, email and printing.
 - **`badge.ts`** — a shields-style readiness badge as an SVG string, shared by
   the client download and `GET /api/badge`.
+- **`diff.ts`** — pure client-side report comparison. `diffReports(base,
+  current)` matches findings by a stable rule/file/line key and returns what was
+  added, removed and unchanged, plus per-severity and score deltas. Powers the
+  ComparePanel and is fully unit-tested.
 
 ### `lib/api` — route plumbing
 
@@ -111,6 +115,8 @@ deterministic: the same snapshot always yields the same report.
 - **`ratelimit.ts`** — a dependency-free fixed-window in-memory rate limiter
   (injectable clock for tests) plus shared per-route limiter instances keyed by
   client IP.
+- **`openapi.ts`** — builds the OpenAPI 3.1 document (served at `/api/openapi`)
+  describing every route, the envelope and the `ScanReport` schema.
 
 ### `app/api` — route handlers
 
@@ -124,6 +130,15 @@ POST routes are rate limited per client.
 - **`GET /api/rules`** — the machine-readable rule catalog.
 - **`GET /api/health`** — liveness probe (status, version, rule count, uptime).
 - **`GET /api/badge?score=NN`** — readiness badge as `image/svg+xml`.
+- **`GET /api/openapi`** — OpenAPI 3.1 specification of the API.
+
+### PWA
+
+`app/manifest.ts` emits the web app manifest and `app/icon.svg` the app icon,
+making LaunchGuard installable. `public/sw.js` is a service worker registered by
+`components/ServiceWorkerRegister` in production: static assets are cached
+cache-first, the app shell network-first (so it opens offline after one visit),
+and `/api/*` is always network-only so scans are never served stale.
 
 ### `app` + `components` — the dashboard
 
@@ -131,12 +146,15 @@ POST routes are rate limited per client.
 and score delta in React state. Presentational pieces live in `components/`:
 `ScanForm` (demo/GitHub/ZIP tabs), `ScoreGauge` (SVG arc + delta vs last scan),
 `SummaryCards`, `InsightsPanel` (projected scores, quick wins, file types),
-`FindingsPanel` (severity/category/text filters, sorting, expand/collapse all,
-`/` shortcut), `FixPlanPanel` (fix-plan generation, seven export formats, copy
-summary, print), `RuleCatalog` (the full rule list) and `HistoryPanel` (recent
-scans from localStorage). Styling is a hand-written design system in
-`app/globals.css` (no UI framework) with dark/light themes (`lib/ui/theme.tsx`)
-and print styles.
+`FindingsPanel` (severity/category/text filters, sorting, expand/collapse all;
+memoized rows + deferred filtering for large reports), `FixPlanPanel` (fix-plan
+generation, seven export formats, copy summary, print), `ComparePanel` (diff
+against a loaded baseline JSON), `RuleCatalog` (the full rule list) and
+`HistoryPanel` (recent scans from localStorage). `GlobalShortcuts` wires the
+app-wide `t`/`p` keys. Styling is a hand-written design system in
+`app/globals.css` (no UI framework) with dark/light themes (`lib/ui/theme.tsx`),
+a skip link, `:focus-visible` rings, `prefers-reduced-motion` support, a mobile
+layout and print styles.
 
 ## Testing
 
