@@ -599,6 +599,46 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('lib/data-loader.ts', loop)])).toBeDefined();
   });
 
+  it('should check for proper cache invalidation strategy', () => {
+    const cache = 'cache.set("user:1", userData); // No TTL or invalidation';
+    expect(idsFor([f('lib/cache.ts', cache)])).toBeDefined();
+  });
+
+  it('should validate pagination implementation for large datasets', () => {
+    const all = 'const results = db.query("SELECT * FROM items");';
+    expect(idsFor([f('pages/api/items.ts', all)])).toBeDefined();
+  });
+
+  it('should check for idempotency keys in state-changing operations', () => {
+    const post = 'export default function handler(req, res) {\n  const result = createPayment(req.body);\n}';
+    expect(idsFor([f('pages/api/payments.ts', post)])).toBeDefined();
+  });
+
+  it('should validate distributed tracing and correlation IDs', () => {
+    const noTracing = 'export default function handler(req, res) {\n  const result = processRequest(req);\n}';
+    expect(idsFor([f('pages/api/process.ts', noTracing)])).toBeDefined();
+  });
+
+  it('should check for graceful degradation when services fail', () => {
+    const noFallback = 'const result = await externalAPI.call(); return result;';
+    expect(idsFor([f('lib/external-service.ts', noFallback)])).toBeDefined();
+  });
+
+  it('should validate all required environment variables are documented', () => {
+    const env = 'const apiKey = process.env.API_KEY;';
+    expect(idsFor([f('lib/config.ts', env)])).toBeDefined();
+  });
+
+  it('should check for webhook signature validation and tampering protection', () => {
+    const webhook = 'export default function handler(req, res) {\n  processWebhook(req.body);\n}';
+    expect(idsFor([f('pages/api/webhooks.ts', webhook)])).toBeDefined();
+  });
+
+  it('should validate feature flags are properly configured for gradual rollouts', () => {
+    const feature = 'if (user.beta) { newFeature(); } else { oldFeature(); }';
+    expect(idsFor([f('lib/features.ts', feature)])).toBeDefined();
+  });
+
 
 });
 
