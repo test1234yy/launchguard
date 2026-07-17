@@ -166,4 +166,85 @@ test.describe('LaunchGuard new features', () => {
     const badBadge = await request.get('/api/badge?score=weird');
     expect(badBadge.status()).toBe(400);
   });
+
+  test('OpenAPI spec and web manifest are served', async ({ request }) => {
+    const spec = await request.get('/api/openapi');
+    expect(spec.ok()).toBeTruthy();
+    const specBody = await spec.json();
+    expect(specBody.openapi).toBe('3.1.0');
+    expect(specBody.paths['/api/scan']).toBeDefined();
+
+    const manifest = await request.get('/manifest.webmanifest');
+    expect(manifest.ok()).toBeTruthy();
+    const manifestBody = await manifest.json();
+    expect(manifestBody.name).toContain('LaunchGuard');
+    expect(manifestBody.display).toBe('standalone');
+  });
+
+  test('e and x keyboard shortcuts expand and collapse all findings', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Run demo scan/i }).click();
+    await expect(page.locator('.finding-head').first()).toBeVisible({ timeout: 15000 });
+
+    await expect(page.locator('.finding-body')).toHaveCount(0);
+    await page.keyboard.press('e');
+    const findingCount = await page.locator('.finding').count();
+    await expect(page.locator('.finding-body')).toHaveCount(findingCount);
+    await page.keyboard.press('x');
+    await expect(page.locator('.finding-body')).toHaveCount(0);
+  });
+
+  test('t keyboard shortcut toggles the theme', async ({ page }) => {
+    await page.goto('/');
+    const html = page.locator('html');
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+    await page.keyboard.press('t');
+    await expect(html).toHaveAttribute('data-theme', 'light');
+    await page.keyboard.press('t');
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+  });
+
+  test('report comparison diffs a loaded baseline against the current scan', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: /Run demo scan/i }).click();
+    const compare = page.getByTestId('compare-panel');
+    await expect(compare).toBeVisible({ timeout: 15000 });
+
+    // A baseline with an extra committed .env finding that the current scan lacks,
+    // so the diff must report exactly one resolved finding.
+    const baseline = {
+      projectName: 'acme-storefront (demo)',
+      score: 10,
+      fingerprint: 'baseline0',
+      scannedAt: '2026-01-01T00:00:00.000Z',
+      findings: [
+        {
+          id: 'SEC001-1',
+          ruleId: 'SEC001',
+          title: 'Environment file committed to the repository',
+          severity: 'critical',
+          category: 'secrets',
+          file: '.env.baseline',
+          evidence: 'baseline only',
+          remediation: 'remove it',
+        },
+      ],
+    };
+    await compare
+      .locator('input[type="file"]')
+      .setInputFiles({ name: 'baseline.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(baseline)) });
+
+    await expect(compare.locator('.diff-body')).toBeVisible();
+    await expect(compare.locator('.diff-removed-head')).toContainText(/Resolved findings \(1\)/);
+    await expect(compare.locator('.diff-summary-line')).toContainText(/resolved/);
+  });
+
+  test('accessibility: skip link and focus ring are present', async ({ page }) => {
+    await page.goto('/');
+    // The skip link is the first focusable element.
+    await page.keyboard.press('Tab');
+    const skip = page.locator('.skip-link');
+    await expect(skip).toBeFocused();
+    await expect(skip).toHaveText(/skip to main content/i);
+  });
 });

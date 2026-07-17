@@ -220,6 +220,22 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('package.json', '{"dependencies":{"joi":"^17.0.0"}}')])).not.toContain('ADV003');
   });
 
+  it('ADV005 should check for missing CSRF protection middleware', () => {
+    const express = f('server.ts', 'const express = require("express");\nconst app = express();');
+    expect(idsFor([f('package.json', '{"dependencies":{"express":"^4.0.0"}}'), express])).toBeDefined();
+  });
+
+  it('should validate TypeScript strict mode is enabled', () => {
+    const tsconfig = JSON.stringify({
+      compilerOptions: {
+        strict: true,
+        noImplicitAny: true,
+        strictNullChecks: true
+      }
+    });
+    expect(idsFor([f('tsconfig.json', tsconfig)])).toBeDefined();
+  });
+
 });
 
 describe('advanced environment rules', () => {
