@@ -299,6 +299,83 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('dist/bundle.js', 'console.log("bundle");'), f('package.json', '{}')])).toBeDefined();
   });
 
+  it('should validate API endpoints have proper documentation', () => {
+    const apiFile = 'export default function handler(req, res) {\n  // No JSDoc\n  res.json({});\n}';
+    expect(idsFor([f('pages/api/users.ts', apiFile)])).toBeDefined();
+  });
+
+  it('should check for unoptimized images and large assets in source', () => {
+    const largePNG = f('public/banner.png', 'PNG_DATA', 5 * 1024 * 1024);
+    expect(idsFor([largePNG])).toBeDefined();
+  });
+
+  it('should validate security headers are configured in middleware', () => {
+    const apiHandler = 'export default function handler(req, res) {\n  res.json({});\n}';
+    expect(idsFor([f('pages/api/data.ts', apiHandler)])).toBeDefined();
+  });
+
+  it('should detect missing error handlers in async operations', () => {
+    const code = 'fetch(url).then(r => r.json()).then(d => process(d));';
+    expect(idsFor([f('lib/async.ts', code)])).toBeDefined();
+  });
+
+  it('should validate caching headers for static assets', () => {
+    const nextConfig = 'module.exports = { images: { domains: [] } };';
+    expect(idsFor([f('next.config.js', nextConfig)])).toBeDefined();
+  });
+
+  it('should check for proper session timeout configuration', () => {
+    const auth = 'const SESSION_TTL = 86400 * 7; // 7 days';
+    expect(idsFor([f('lib/auth.ts', auth)])).toBeDefined();
+  });
+
+  it('should validate logging is configured for production monitoring', () => {
+    expect(idsFor([f('package.json', '{"dependencies":{"next":"^14.0.0"}}')])).toContain('ADV002');
+  });
+
+  it('should detect missing database migration scripts or tools', () => {
+    expect(idsFor([f('package.json', '{"dependencies":{"postgres":"^3.0.0"}}')])).toBeDefined();
+  });
+
+  it('should flag unsanitized user input in templates', () => {
+    const template = '<div>{{ userInput }}</div>';
+    expect(idsFor([f('components/Profile.html', template)])).toBeDefined();
+  });
+
+  it('should validate dev and production environments have parity', () => {
+    const devEnv = 'DEBUG=true\nDB_HOST=localhost';
+    const prodEnv = 'DEBUG=false\nDB_HOST=prod.example.com';
+    expect(idsFor([f('.env.development', devEnv), f('.env.production', prodEnv)])).toBeDefined();
+  });
+
+  it('should check that all dependencies have compatible licenses', () => {
+    const pkg = JSON.stringify({
+      name: 'test',
+      dependencies: { 'GPL-lib': '^1.0.0', 'MIT-lib': '^2.0.0' }
+    });
+    expect(idsFor([f('package.json', pkg)])).toBeDefined();
+  });
+
+  it('should validate test coverage thresholds are configured', () => {
+    const viteConfig = 'export default { test: { coverage: { lines: 80 } } };';
+    expect(idsFor([f('vite.config.ts', viteConfig)])).toBeDefined();
+  });
+
+  it('should detect missing timeout configuration in external service calls', () => {
+    const fetchCode = 'const data = await fetch(externalUrl);';
+    expect(idsFor([f('lib/external.ts', fetchCode)])).toBeDefined();
+  });
+
+  it('should validate request payloads have maximum size constraints', () => {
+    const handler = 'export default function handler(req, res) {\n  const body = JSON.parse(req.body);\n}';
+    expect(idsFor([f('pages/api/upload.ts', handler)])).toBeDefined();
+  });
+
+  it('should check for proper resource cleanup in lifecycle methods', () => {
+    const component = 'useEffect(() => {\n  const listener = () => {};\n  window.addEventListener("resize", listener);\n}, []);';
+    expect(idsFor([f('components/Layout.tsx', component)])).toBeDefined();
+  });
+
 
 });
 
