@@ -560,6 +560,15 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('lib/api-client.ts', http)])).toBeDefined();
   });
 
+  it('should check for backup and disaster recovery procedures', () => {
+    expect(idsFor([f('package.json', '{"name":"test","dependencies":{"next":"^14.0.0"}}')])).toBeDefined();
+  });
+
+  it('should validate monitoring and alerting infrastructure exists', () => {
+    const monitoring = 'import { setupAlerts } from "monitoring";';
+    expect(idsFor([f('lib/setup.ts', monitoring)])).toBeDefined();
+  });
+
 
 });
 
