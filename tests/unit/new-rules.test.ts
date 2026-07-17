@@ -386,6 +386,31 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('lib/db-operations.ts', db)])).toBeDefined();
   });
 
+  it('should detect SQL injection vulnerabilities from string concatenation', () => {
+    const query = 'const sql = "SELECT * FROM users WHERE id = " + userId;';
+    expect(idsFor([f('lib/queries.ts', query)])).toBeDefined();
+  });
+
+  it('should flag unsafe access to nested properties without null checks', () => {
+    const unsafe = 'const name = response.data.user.profile.name;';
+    expect(idsFor([f('lib/utils.ts', unsafe)])).toBeDefined();
+  });
+
+  it('should detect loose equality comparisons that could cause bugs', () => {
+    const loose = 'if (value == "0") { /* block */ }';
+    expect(idsFor([f('lib/validation.ts', loose)])).toBeDefined();
+  });
+
+  it('should flag concurrent operations without synchronization primitives', () => {
+    const concurrent = 'let counter = 0; Promise.all([() => counter++, () => counter++]);';
+    expect(idsFor([f('lib/concurrent.ts', concurrent)])).toBeDefined();
+  });
+
+  it('should validate proper handling of Unicode and multi-byte characters', () => {
+    const encoding = 'const len = str.length; // Incorrect for multi-byte chars';
+    expect(idsFor([f('lib/string-utils.ts', encoding)])).toBeDefined();
+  });
+
 
 });
 
