@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir -p .claude/assist)"
+      "Bash(mkdir -p .claude/assist)",
+      "Skill(loop)",
+      "Skill(loop:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\User\\LaunchGuard\\.claude"
