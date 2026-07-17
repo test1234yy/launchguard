@@ -446,6 +446,66 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('components/Editor.tsx', inject)])).toBeDefined();
   });
 
+  it('should flag potentially catastrophic regex patterns', () => {
+    const regex = 'const pattern = /(.*)*violation/; pattern.test(userInput);';
+    expect(idsFor([f('lib/validation.ts', regex)])).toBeDefined();
+  });
+
+  it('should detect path traversal vulnerabilities in file operations', () => {
+    const traversal = 'const path = "/uploads/" + userFilename; fs.readFile(path);';
+    expect(idsFor([f('lib/file-handler.ts', traversal)])).toBeDefined();
+  });
+
+  it('should flag command injection through shell execution', () => {
+    const shell = 'exec("grep " + userPattern + " file.txt");';
+    expect(idsFor([f('lib/shell-commands.ts', shell)])).toBeDefined();
+  });
+
+  it('should detect LDAP injection vulnerabilities', () => {
+    const ldap = 'const filter = "(uid=" + username + ")"; ldap.search(filter);';
+    expect(idsFor([f('lib/ldap-auth.ts', ldap)])).toBeDefined();
+  });
+
+  it('should flag XML parsing without XXE protection', () => {
+    const xml = 'const doc = new DOMParser().parseFromString(xmlData);';
+    expect(idsFor([f('lib/xml-parser.ts', xml)])).toBeDefined();
+  });
+
+  it('should detect server-side template injection vulnerabilities', () => {
+    const ssti = 'const html = template.render({ userInput });';
+    expect(idsFor([f('lib/template-engine.ts', ssti)])).toBeDefined();
+  });
+
+  it('should flag insecure random number generation', () => {
+    const insecure = 'const token = Math.random().toString(36);';
+    expect(idsFor([f('lib/token-generator.ts', insecure)])).toBeDefined();
+  });
+
+  it('should detect stack traces exposed to client', () => {
+    const expose = 'res.send(error.stack);';
+    expect(idsFor([f('pages/api/error.ts', expose)])).toBeDefined();
+  });
+
+  it('should flag timing-vulnerable string comparisons', () => {
+    const timing = 'if (token === userToken) { /* vulnerable */ }';
+    expect(idsFor([f('lib/auth-check.ts', timing)])).toBeDefined();
+  });
+
+  it('should validate X-Frame-Options header is set', () => {
+    const api = 'export default function handler(req, res) { res.json({}); }';
+    expect(idsFor([f('pages/api/safe.ts', api)])).toBeDefined();
+  });
+
+  it('should check for CSRF token validation in state-changing operations', () => {
+    const post = 'export default function handler(req, res) {\n  if (req.method === "POST") {\n    await deleteUser(id);\n  }\n}';
+    expect(idsFor([f('pages/api/users/[id].ts', post)])).toBeDefined();
+  });
+
+  it('should detect HTTP header injection through unsanitized input', () => {
+    const injection = 'res.setHeader("Location", userUrl);';
+    expect(idsFor([f('pages/api/redirect.ts', injection)])).toBeDefined();
+  });
+
 
 });
 
