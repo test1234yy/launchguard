@@ -42,6 +42,8 @@ export function parseJsonSafe<T = unknown>(content: string): T | undefined {
 export interface PackageJsonShape {
   name?: string;
   version?: string;
+  private?: boolean;
+  license?: string;
   scripts?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;

@@ -1,5 +1,5 @@
-import type { Rule } from '../types';
-import { getRootPackageJson } from './helpers';
+import type { Rule, RuleMatch } from '../types';
+import { eachLine, getRootPackageJson } from './helpers';
 
 function ciConfigFiles(project: Parameters<Rule['check']>[0]): string[] {
   const paths: string[] = [];
@@ -95,6 +95,156 @@ export const ciSkipsTests: Rule = {
   },
 };
 
-export const ciRules: Rule[] = [missingCi, missingTestScript, ciSkipsTests];
+function githubWorkflows(project: Parameters<Rule['check']>[0]) {
+  return project.files.filter(
+    (f) => !f.binary && f.path.startsWith('.github/workflows/') && (f.path.endsWith('.yml') || f.path.endsWith('.yaml'))
+  );
+}
+
+const PINNED_REF = /^[0-9a-f]{7,40}$|^v?\d+(\.\d+){0,2}([-.][\w.]+)?$/i;
+
+/** CI004: GitHub Actions pinned to a mutable branch (or not pinned at all). */
+export const unpinnedActions: Rule = {
+  id: 'CI004',
+  title: 'GitHub Action not pinned to a version',
+  severity: 'medium',
+  category: 'ci',
+  description: 'Actions referenced by @main/@master (or no ref) can change under you — including maliciously.',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of githubWorkflows(project)) {
+      eachLine(file.content, (line, lineNo) => {
+        if (matches.length >= 15) return;
+        const m = /^\s*(?:-\s+)?uses:\s*([^\s#'"]+)/.exec(line);
+        if (!m) return;
+        const ref = m[1];
+        if (ref.startsWith('./') || ref.startsWith('docker://')) return;
+        const at = ref.lastIndexOf('@');
+        if (at === -1) {
+          matches.push({
+            file: file.path,
+            line: lineNo,
+            evidence: line.trim(),
+            remediation: `Pin ${ref} to a release tag or, best, a full commit SHA (e.g. ${ref}@<sha>).`,
+          });
+          return;
+        }
+        const version = ref.slice(at + 1);
+        if (/^(main|master|latest)$/i.test(version)) {
+          matches.push({
+            file: file.path,
+            line: lineNo,
+            evidence: line.trim(),
+            remediation: `Pin ${ref.slice(0, at)} to a release tag or a full commit SHA instead of the mutable "${version}" branch.`,
+          });
+        } else if (!PINNED_REF.test(version)) {
+          matches.push({
+            file: file.path,
+            line: lineNo,
+            evidence: line.trim(),
+            remediation: `"${version}" looks like a mutable branch; pin ${ref.slice(0, at)} to a release tag or commit SHA.`,
+          });
+        }
+      });
+    }
+    return matches;
+  },
+};
+
+const PR_HEAD_CHECKOUT = /ref:\s*\$\{\{\s*github\.event\.pull_request\.head/;
+
+/** CI005: pull_request_target workflow checks out untrusted PR code. */
+export const pwnRequestWorkflow: Rule = {
+  id: 'CI005',
+  title: 'pull_request_target workflow checks out untrusted PR code',
+  severity: 'high',
+  category: 'ci',
+  description:
+    'pull_request_target runs with repository secrets; checking out the PR head lets any fork execute code with those secrets ("pwn request").',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of githubWorkflows(project)) {
+      if (!file.content.includes('pull_request_target')) continue;
+      let refLine = 0;
+      eachLine(file.content, (line, lineNo) => {
+        if (!refLine && PR_HEAD_CHECKOUT.test(line)) refLine = lineNo;
+      });
+      if (!refLine) continue;
+      matches.push({
+        file: file.path,
+        line: refLine,
+        evidence: `Workflow uses pull_request_target and checks out \${{ github.event.pull_request.head }}.`,
+        remediation:
+          'Split the workflow: run untrusted PR code under the plain pull_request event (no secrets), and keep pull_request_target steps from checking out or executing fork code.',
+      });
+    }
+    return matches;
+  },
+};
+
+const TEST_FILE_PATTERN = /\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\/|_test\.go$|(^|\/)test_[^/]+\.py$/i;
+const TEST_DIR_PATTERN = /(^|\/)(tests?|e2e|spec)(\/)/i;
+
+/** CI006: the project ships no test files at all. */
+export const noTestFiles: Rule = {
+  id: 'CI006',
+  title: 'No test files found in the project',
+  severity: 'medium',
+  category: 'ci',
+  description: 'Without any tests, every deploy is an experiment run in production.',
+  check(project) {
+    if (!getRootPackageJson(project)) return [];
+    const hasTests = project.files.some(
+      (f) => TEST_FILE_PATTERN.test(f.path) || TEST_DIR_PATTERN.test(f.path)
+    );
+    if (hasTests) return [];
+    return [
+      {
+        file: '(project)',
+        evidence: 'No *.test.*, *.spec.*, __tests__/ or tests/ files exist anywhere in the project.',
+        remediation:
+          'Add at least a smoke test for the critical path (build boots, homepage renders, core API responds) and run it in CI.',
+      },
+    ];
+  },
+};
+
+/** CI007: workflow steps that print secrets into build logs. */
+export const secretsEchoedInCi: Rule = {
+  id: 'CI007',
+  title: 'Workflow echoes secrets into the build log',
+  severity: 'high',
+  category: 'ci',
+  description: 'echo/printenv of ${{ secrets.* }} writes credential values into CI logs, where they outlive the run.',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of githubWorkflows(project)) {
+      eachLine(file.content, (line, lineNo) => {
+        if (matches.length >= 10) return;
+        if (line.includes('add-mask')) return; // ::add-mask:: is the safe pattern
+        if (/\b(echo|printf|printenv)\b[^\n]*\$\{\{\s*secrets\./.test(line)) {
+          matches.push({
+            file: file.path,
+            line: lineNo,
+            evidence: line.trim().slice(0, 160),
+            remediation:
+              'Never print secrets. Pass them via env: or with: inputs, and use `echo "::add-mask::$VALUE"` if a derived value could appear in logs.',
+          });
+        }
+      });
+    }
+    return matches;
+  },
+};
+
+export const ciRules: Rule[] = [
+  missingCi,
+  missingTestScript,
+  ciSkipsTests,
+  unpinnedActions,
+  pwnRequestWorkflow,
+  noTestFiles,
+  secretsEchoedInCi,
+];
 
 export { ciConfigFiles };

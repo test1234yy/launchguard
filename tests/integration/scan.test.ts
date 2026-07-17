@@ -39,6 +39,43 @@ describe('demo scan (integration)', () => {
       expect(rank[report.findings[i].severity]).toBeGreaterThanOrEqual(rank[report.findings[i - 1].severity]);
     }
   });
+
+  it('trips the new wave of rules on the demo project', () => {
+    const ids = new Set(report.findings.map((finding) => finding.ruleId));
+    // The demo has no tests, a Dockerfile without HEALTHCHECK and a dockerized
+    // Next.js app without standalone output. (CFG006 stays quiet because the
+    // demo package.json is private: true.)
+    for (const id of ['CI006', 'DOC005', 'NXT004']) {
+      expect(ids.has(id)).toBe(true);
+    }
+    expect(ids.has('CFG006')).toBe(false);
+  });
+
+  it('carries the new report metadata end-to-end', () => {
+    expect(report.durationMs).toBeGreaterThanOrEqual(0);
+    expect(report.fingerprint).toMatch(/^[0-9a-f]{8}$/);
+    expect(report.fileTypes.json).toBeGreaterThanOrEqual(1);
+    expect(report.suppressedFindings).toBe(0);
+  });
+
+  it('honors launchguard.config.json shipped inside the scanned project', () => {
+    const snapshot = demoProject();
+    snapshot.files.push({
+      path: 'launchguard.config.json',
+      content: '{"ignoreRules":["NXT001"],"minSeverity":"low"}',
+      size: 50,
+      binary: false,
+    });
+    const configured = buildReport(snapshot, { source: { type: 'demo', ref: 'demo' } });
+    const ids = new Set(configured.findings.map((finding) => finding.ruleId));
+    // NXT001 is high severity and fires on the unconfigured demo, so its
+    // absence proves ignoreRules worked (not just the severity floor).
+    expect(ids.has('NXT001')).toBe(false);
+    expect(configured.findings.every((finding) => finding.severity !== 'info')).toBe(true);
+    expect(configured.suppressedFindings).toBeGreaterThan(0);
+    expect(configured.notes.join(' ')).toContain('launchguard.config.json');
+    expect(configured.score).toBeGreaterThanOrEqual(report.score);
+  });
 });
 
 describe('report exports (integration)', () => {

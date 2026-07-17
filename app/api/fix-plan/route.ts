@@ -1,5 +1,6 @@
 import { generateFixPlan } from '@/lib/fixplan/generate';
-import { apiError, apiOk } from '@/lib/api/respond';
+import { apiError, apiOk, apiTooManyRequests } from '@/lib/api/respond';
+import { clientKeyFrom, fixPlanLimiter } from '@/lib/api/ratelimit';
 import type { ScanReport } from '@/lib/scanner/types';
 
 export const runtime = 'nodejs';
@@ -8,6 +9,9 @@ export const dynamic = 'force-dynamic';
 interface FixPlanBody {
   report?: ScanReport;
 }
+
+/** Upper bound on findings accepted in one request (the prompt uses at most 40). */
+const MAX_FINDINGS_ACCEPTED = 200;
 
 /** Minimal shape + size check so we never hand malformed or oversized data to the generator. */
 function isReport(value: unknown): value is ScanReport {
@@ -23,7 +27,7 @@ function isReport(value: unknown): value is ScanReport {
   }
   // SEC-5: Bound report sizes to prevent unbounded OpenAI prompt inflation.
   if (r.projectName.length > 200) return false;
-  if (r.findings.length > 40) return false;
+  if (r.findings.length > MAX_FINDINGS_ACCEPTED) return false;
   for (const f of r.findings) {
     if (typeof f.title !== 'string' || f.title.length > 500) return false;
     if (typeof f.evidence !== 'string' || f.evidence.length > 500) return false;
@@ -33,6 +37,9 @@ function isReport(value: unknown): value is ScanReport {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const decision = fixPlanLimiter.check(clientKeyFrom(request.headers));
+  if (!decision.allowed) return apiTooManyRequests(decision.retryAfterSec);
+
   let body: FixPlanBody;
   try {
     body = (await request.json()) as FixPlanBody;

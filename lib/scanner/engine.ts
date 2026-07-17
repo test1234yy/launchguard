@@ -2,6 +2,9 @@ import type { Finding, ProjectSnapshot, ScanReport, Severity } from './types';
 import { ALL_RULES } from './rules';
 import { toEvidence } from './redact';
 import { computeScore, countByCategory, countBySeverity, gradeFor } from './score';
+import { parseScanConfig, SCAN_CONFIG_FILENAME } from './config';
+import { reportFingerprint } from './fingerprint';
+import { fileTypeBreakdown } from './insights';
 
 /**
  * The rule engine.
@@ -58,7 +61,31 @@ export function runRules(project: ProjectSnapshot): Finding[] {
 let reportCounter = 0;
 
 export function buildReport(project: ProjectSnapshot, meta: ScanMeta): ScanReport {
-  const findings = runRules(project);
+  const startedAt = Date.now();
+  const config = parseScanConfig(project);
+  const allFindings = runRules(project);
+
+  const minRank = config.minSeverity !== undefined ? SEVERITY_RANK[config.minSeverity] : undefined;
+  const findings = allFindings.filter((finding) => {
+    if (config.ignoreRules.includes(finding.ruleId)) return false;
+    if (minRank !== undefined && SEVERITY_RANK[finding.severity] > minRank) return false;
+    return true;
+  });
+  const suppressedFindings = allFindings.length - findings.length;
+
+  const notes = [...(meta.notes ?? []), ...config.notes];
+  if (config.ignoreRules.length > 0) {
+    notes.push(
+      `${SCAN_CONFIG_FILENAME} in the scanned project suppresses rule(s) ${config.ignoreRules.join(', ')}.`
+    );
+  }
+  if (config.minSeverity) {
+    notes.push(`${SCAN_CONFIG_FILENAME} hides findings below "${config.minSeverity}" severity.`);
+  }
+  if (suppressedFindings > 0) {
+    notes.push(`${suppressedFindings} finding(s) were hidden by the scanned project's configuration.`);
+  }
+
   const score = computeScore(findings);
   reportCounter += 1;
   return {
@@ -66,9 +93,13 @@ export function buildReport(project: ProjectSnapshot, meta: ScanMeta): ScanRepor
     projectName: project.name,
     source: meta.source,
     scannedAt: new Date().toISOString(),
+    durationMs: Math.max(0, Date.now() - startedAt),
+    fingerprint: reportFingerprint(findings, score),
     fileCount: project.files.length,
     skippedFiles: meta.skippedFiles ?? 0,
     rulesEvaluated: ALL_RULES.length,
+    suppressedFindings,
+    fileTypes: fileTypeBreakdown(project.files),
     score,
     grade: gradeFor(score),
     summary: {
@@ -77,6 +108,6 @@ export function buildReport(project: ProjectSnapshot, meta: ScanMeta): ScanRepor
       byCategory: countByCategory(findings),
     },
     findings,
-    notes: meta.notes ?? [],
+    notes,
   };
 }

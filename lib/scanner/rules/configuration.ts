@@ -143,10 +143,33 @@ export const corsWildcard: Rule = {
   },
 };
 
+/** CFG006: no license anywhere (file or package.json field). */
+export const missingLicense: Rule = {
+  id: 'CFG006',
+  title: 'No license declared',
+  severity: 'info',
+  category: 'configuration',
+  description: 'Without a license, nobody — including your own deploy targets and auditors — formally may use the code.',
+  check(project) {
+    const pkg = getRootPackageJson(project);
+    if (!pkg || pkg.pkg.private === true) return []; // private packages routinely omit licenses
+    if (pkg.pkg.license) return [];
+    if (findRootFile(project, 'LICENSE', 'LICENSE.md', 'LICENSE.txt', 'LICENCE', 'LICENCE.md', 'COPYING')) return [];
+    return [
+      {
+        file: 'package.json',
+        evidence: 'No LICENSE file and no "license" field in package.json.',
+        remediation: 'Pick a license (e.g. MIT, Apache-2.0), commit it as LICENSE and set the "license" field in package.json.',
+      },
+    ];
+  },
+};
+
 export const configurationRules: Rule[] = [
   missingGitignore,
   gitignoreGaps,
   committedNodeModules,
   missingReadme,
   corsWildcard,
+  missingLicense,
 ];

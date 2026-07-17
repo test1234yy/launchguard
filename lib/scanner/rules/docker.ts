@@ -176,6 +176,81 @@ export const dockerNpmInstall: Rule = {
   },
 };
 
-export const dockerRules: Rule[] = [dockerMutableBase, dockerRootUser, dockerCopiesSecrets, dockerNpmInstall];
+/** DOC005: long-running service image has no HEALTHCHECK. */
+export const dockerNoHealthcheck: Rule = {
+  id: 'DOC005',
+  title: 'Dockerfile defines a service but no HEALTHCHECK',
+  severity: 'info',
+  category: 'docker',
+  description: 'Without a HEALTHCHECK, orchestrators keep routing traffic to a container whose process is up but broken.',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of dockerfiles(project)) {
+      const runsService = /^\s*(CMD|ENTRYPOINT)\b/im.test(file.content);
+      const hasHealthcheck = /^\s*HEALTHCHECK\b/im.test(file.content);
+      if (runsService && !hasHealthcheck) {
+        matches.push({
+          file: file.path,
+          evidence: `${file.path} has a CMD/ENTRYPOINT but no HEALTHCHECK instruction.`,
+          remediation:
+            'Add a HEALTHCHECK (e.g. curl the app\'s /api/health endpoint) so the platform can detect and replace unhealthy containers.',
+        });
+      }
+    }
+    return matches;
+  },
+};
+
+function composeFiles(project: ProjectSnapshot): ScannedFile[] {
+  return project.files.filter((f) => {
+    if (f.binary || isInNodeModules(f.path)) return false;
+    return /^(docker-)?compose[^/]*\.ya?ml$/i.test(baseName(f.path));
+  });
+}
+
+/** DOC006: docker-compose services with dangerous host privileges. */
+export const composePrivileged: Rule = {
+  id: 'DOC006',
+  title: 'Compose service runs with host-level privileges',
+  severity: 'high',
+  category: 'docker',
+  description: 'privileged: true, host networking or host PID give the container near-root control of the host.',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of composeFiles(project)) {
+      eachLine(file.content, (line, lineNo) => {
+        if (matches.length >= 10) return;
+        if (/^\s*privileged\s*:\s*true\b/i.test(line)) {
+          matches.push({
+            file: file.path,
+            line: lineNo,
+            evidence: line.trim(),
+            remediation:
+              'Drop privileged: true; grant only the specific capabilities the service needs via cap_add, or run it outside the container.',
+          });
+        } else if (/^\s*(network_mode|pid)\s*:\s*["']?host["']?\s*$/i.test(line)) {
+          matches.push({
+            file: file.path,
+            line: lineNo,
+            severity: 'medium',
+            evidence: line.trim(),
+            remediation:
+              'Avoid host networking/PID namespaces in production; publish specific ports instead so the container stays isolated.',
+          });
+        }
+      });
+    }
+    return matches;
+  },
+};
+
+export const dockerRules: Rule[] = [
+  dockerMutableBase,
+  dockerRootUser,
+  dockerCopiesSecrets,
+  dockerNpmInstall,
+  dockerNoHealthcheck,
+  composePrivileged,
+];
 
 export { dockerfiles, parseFromLines };

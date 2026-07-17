@@ -1,7 +1,8 @@
 import { buildReport } from '@/lib/scanner/engine';
 import { loadZip, ZipError } from '@/lib/sources/zip';
 import { LIMITS } from '@/lib/sources/common';
-import { apiError, apiOk } from '@/lib/api/respond';
+import { apiError, apiOk, apiTooManyRequests } from '@/lib/api/respond';
+import { clientKeyFrom, uploadLimiter } from '@/lib/api/ratelimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,9 @@ export const dynamic = 'force-dynamic';
  * written to disk or executed. The uploaded bytes are never persisted.
  */
 export async function POST(request: Request): Promise<Response> {
+  const decision = uploadLimiter.check(clientKeyFrom(request.headers));
+  if (!decision.allowed) return apiTooManyRequests(decision.retryAfterSec);
+
   // SEC-4: Check Content-Length early, before buffering the body.
   const contentLength = Number(request.headers.get('content-length') || 0);
   if (contentLength > LIMITS.maxUploadBytes && contentLength > 0) {

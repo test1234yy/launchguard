@@ -17,7 +17,8 @@ export type Category =
   | 'docker'
   | 'prisma'
   | 'nextjs'
-  | 'configuration';
+  | 'configuration'
+  | 'quality';
 
 export const CATEGORIES: Category[] = [
   'secrets',
@@ -28,6 +29,7 @@ export const CATEGORIES: Category[] = [
   'prisma',
   'nextjs',
   'configuration',
+  'quality',
 ];
 
 /** A single scanned file: repo-relative POSIX path plus decoded text content. */
@@ -106,9 +108,17 @@ export interface ScanReport {
   projectName: string;
   source: { type: 'demo' | 'github' | 'zip'; ref: string };
   scannedAt: string;
+  /** Wall-clock milliseconds spent evaluating rules for this report. */
+  durationMs: number;
+  /** Content-stable hash of findings + score (identical input ⇒ identical value). */
+  fingerprint: string;
   fileCount: number;
   skippedFiles: number;
   rulesEvaluated: number;
+  /** Findings hidden by the scanned project's launchguard.config.json. */
+  suppressedFindings: number;
+  /** File-extension breakdown of the scanned snapshot. */
+  fileTypes: Record<string, number>;
   score: number;
   grade: string;
   summary: {

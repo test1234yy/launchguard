@@ -5,6 +5,54 @@ export function reportToJson(report: ScanReport): string {
   return JSON.stringify(report, null, 2);
 }
 
+/** CSV export of findings (spreadsheet-friendly). */
+export function reportToCsv(report: ScanReport): string {
+  const headers = ['Severity', 'Category', 'Rule ID', 'Title', 'File', 'Line', 'Evidence', 'Remediation'];
+  const rows = report.findings.map((f) => [
+    f.severity,
+    f.category,
+    f.ruleId,
+    `"${f.title.replace(/"/g, '""')}"`,
+    `"${f.file.replace(/"/g, '""')}"`,
+    f.line ?? '',
+    `"${f.evidence.replace(/"/g, '""')}"`,
+    `"${f.remediation.replace(/"/g, '""')}"`,
+  ]);
+  return [headers, ...rows].map((row) => row.join(',')).join('\n');
+}
+
+/** XML export for tool integration. */
+export function reportToXml(report: ScanReport): string {
+  const escape = (str: string) => str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c] || c));
+  const lines: string[] = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<launchguard-report>',
+    `  <project name="${escape(report.projectName)}" />`,
+    `  <metadata>`,
+    `    <score>${report.score}</score>`,
+    `    <grade>${escape(report.grade)}</grade>`,
+    `    <scannedAt>${report.scannedAt}</scannedAt>`,
+    `    <fileCount>${report.fileCount}</fileCount>`,
+    `  </metadata>`,
+    `  <findings count="${report.findings.length}">`,
+  ];
+  for (const f of report.findings) {
+    lines.push(`    <finding id="${escape(f.id)}">`);
+    lines.push(`      <severity>${f.severity}</severity>`);
+    lines.push(`      <category>${f.category}</category>`);
+    lines.push(`      <ruleId>${f.ruleId}</ruleId>`);
+    lines.push(`      <title>${escape(f.title)}</title>`);
+    lines.push(`      <file>${escape(f.file)}</file>`);
+    if (f.line) lines.push(`      <line>${f.line}</line>`);
+    lines.push(`      <evidence>${escape(f.evidence)}</evidence>`);
+    lines.push(`      <remediation>${escape(f.remediation)}</remediation>`);
+    lines.push(`    </finding>`);
+  }
+  lines.push(`  </findings>`);
+  lines.push('</launchguard-report>');
+  return lines.join('\n');
+}
+
 const SEVERITY_LABELS: Array<[keyof SeverityCounts, string]> = [
   ['critical', 'Critical'],
   ['high', 'High'],
@@ -23,6 +71,11 @@ export function reportToMarkdown(report: ScanReport): string {
   lines.push(`- **Scanned at:** ${report.scannedAt}`);
   lines.push(`- **Files scanned:** ${report.fileCount}${report.skippedFiles ? ` (${report.skippedFiles} skipped)` : ''}`);
   lines.push(`- **Rules evaluated:** ${report.rulesEvaluated}`);
+  lines.push(`- **Scan duration:** ${report.durationMs} ms`);
+  lines.push(`- **Fingerprint:** \`${report.fingerprint}\``);
+  if (report.suppressedFindings > 0) {
+    lines.push(`- **Suppressed findings:** ${report.suppressedFindings} (via launchguard.config.json)`);
+  }
   lines.push('');
 
   lines.push('## Summary');

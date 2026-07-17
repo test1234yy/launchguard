@@ -7,6 +7,8 @@ import { dockerRules } from './docker';
 import { prismaRules } from './prisma';
 import { nextjsRules } from './nextjs';
 import { configurationRules } from './configuration';
+import { advancedRules } from './advanced';
+import { qualityRules } from './quality';
 
 /**
  * The complete deterministic rule set, ordered by rule id.
@@ -21,6 +23,8 @@ export const ALL_RULES: Rule[] = [
   ...prismaRules,
   ...nextjsRules,
   ...configurationRules,
+  ...advancedRules,
+  ...qualityRules,
 ].sort((a, b) => a.id.localeCompare(b.id));
 
 export function ruleById(id: string): Rule | undefined {

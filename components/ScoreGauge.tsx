@@ -6,10 +6,12 @@ interface Props {
   score: number;
   grade: string;
   projectName: string;
+  /** Score change vs the previous scan of the same project (null = first scan). */
+  delta?: number | null;
 }
 
 /** Circular readiness gauge rendered with an SVG stroke-dashoffset arc. */
-export function ScoreGauge({ score, grade, projectName }: Props) {
+export function ScoreGauge({ score, grade, projectName, delta }: Props) {
   const radius = 78;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, score));
@@ -44,6 +46,11 @@ export function ScoreGauge({ score, grade, projectName }: Props) {
       <div className="grade-pill" style={{ background: `${color}22`, color }}>
         {grade}
       </div>
+      {delta != null && (
+        <div className={`delta-chip ${delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'}`} data-testid="score-delta">
+          {delta > 0 ? `▲ +${delta}` : delta < 0 ? `▼ ${delta}` : '• ±0'} vs last scan
+        </div>
+      )}
       <div className="project-name">{projectName}</div>
     </div>
   );

@@ -191,10 +191,95 @@ export const nodeVersionUnpinned: Rule = {
   },
 };
 
+/** DEP006: the same package listed in dependencies and devDependencies. */
+export const duplicateDependencies: Rule = {
+  id: 'DEP006',
+  title: 'Package listed in both dependencies and devDependencies',
+  severity: 'low',
+  category: 'dependencies',
+  description: 'Duplicate entries drift apart and make it ambiguous whether the package ships to production.',
+  check(project) {
+    const found = getRootPackageJson(project);
+    if (!found) return [];
+    const deps = found.pkg.dependencies ?? {};
+    const dev = found.pkg.devDependencies ?? {};
+    const matches: RuleMatch[] = [];
+    for (const name of Object.keys(deps)) {
+      if (!(name in dev)) continue;
+      matches.push({
+        file: 'package.json',
+        evidence: `"${name}" appears in dependencies ("${deps[name]}") and devDependencies ("${dev[name]}").`,
+        remediation: `Keep ${name} in exactly one section: dependencies if it is needed at runtime, devDependencies otherwise.`,
+      });
+      if (matches.length >= 10) break;
+    }
+    return matches;
+  },
+};
+
+interface LockfileShape {
+  lockfileVersion?: number;
+  packages?: Record<string, unknown>;
+  dependencies?: Record<string, unknown>;
+}
+
+/** DEP007: package.json declares dependencies the lockfile does not resolve. */
+export const lockfileDrift: Rule = {
+  id: 'DEP007',
+  title: 'Dependency missing from the committed lockfile',
+  severity: 'medium',
+  category: 'dependencies',
+  description: 'A dependency in package.json but absent from package-lock.json makes `npm ci` fail and deploys unreproducible.',
+  check(project) {
+    const found = getRootPackageJson(project);
+    if (!found) return [];
+    const lockFile = findRootFile(project, 'package-lock.json', 'npm-shrinkwrap.json');
+    if (!lockFile || lockFile.binary) return [];
+    const lock = ((): LockfileShape | undefined => {
+      try {
+        return JSON.parse(lockFile.content) as LockfileShape;
+      } catch {
+        return undefined;
+      }
+    })();
+    if (!lock) {
+      return [
+        {
+          file: lockFile.path,
+          evidence: `${lockFile.path} is not valid JSON.`,
+          remediation: 'Regenerate the lockfile with `npm install` and commit the result; a corrupt lockfile breaks `npm ci`.',
+        },
+      ];
+    }
+    const resolved = (name: string): boolean => {
+      if (lock.packages && `node_modules/${name}` in lock.packages) return true;
+      if (lock.dependencies && name in lock.dependencies) return true;
+      return false;
+    };
+    const matches: RuleMatch[] = [];
+    for (const section of ['dependencies', 'devDependencies'] as const) {
+      const deps = found.pkg[section];
+      if (!deps) continue;
+      for (const name of Object.keys(deps)) {
+        if (resolved(name)) continue;
+        matches.push({
+          file: lockFile.path,
+          evidence: `"${name}" is declared in package.json ${section} but has no entry in ${lockFile.path}.`,
+          remediation: `Run npm install to re-sync the lockfile with package.json, then commit it; npm ci fails on drift.`,
+        });
+        if (matches.length >= 10) return matches;
+      }
+    }
+    return matches;
+  },
+};
+
 export const dependencyRules: Rule[] = [
   missingLockfile,
   unpinnedDependencies,
   nonRegistryDependencies,
   riskyPackages,
   nodeVersionUnpinned,
+  duplicateDependencies,
+  lockfileDrift,
 ];

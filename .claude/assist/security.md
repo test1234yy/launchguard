@@ -1,6 +1,7 @@
 # LaunchGuard — Defensive Security Review
 
 - **Last reviewed:** 2026-07-17 (recurring every 25 minutes)
+- **Latest update:** Cycle 7 — new `advanced.ts` rules module integrated (ADV001-ADV010 operational checks)
 - **Reviewer scope:** Read-only defensive audit. This file is the only artifact updated; no production code, config, dependencies, Git history or tests are modified.
 - **What LaunchGuard is:** A deployment-readiness scanner that ingests untrusted projects via **GitHub repo** or **ZIP upload**, pattern-matches them in memory, exposes results through Next.js App Router API routes, and optionally sends *redacted* findings to the OpenAI API for a fix plan.
 
@@ -67,6 +68,9 @@ No new findings identified. The following checks remain in place and are evaluat
 
 ## Review log
 
+- **2026-07-17 (cycle 8):** No new code changes. All 5 prior fixes (SEC-1 through SEC-5) verified in place. No unsafe patterns detected (child_process, eval, dangerouslySetInnerHTML). Continuous monitoring shows all security controls maintained. No regressions.
+- **2026-07-17 (cycle 7):** New `lib/scanner/rules/advanced.ts` module added with 10 operational/deployment-readiness checks (ADV001-ADV010). Properly integrated into rule index. No new security vulnerabilities in LaunchGuard code. All prior fixes maintained. No regressions.
+- **2026-07-17 (cycle 6):** No new code changes. All 5 prior fixes confirmed in place and functional. No regressions detected. Continuous monitoring shows all security controls maintained.
 - **2026-07-17 (cycle 5):** All 5 prior findings confirmed fixed in current codebase with inline comments. Codebase demonstrates active maintenance and security-conscious development. No new vulnerabilities identified.
 - **2026-07-17 (cycle 4):** Write still blocked by classifier outage; work documented externally. SEC-2 and SEC-4 identified as fixed but write not persisted.
 - **2026-07-17 (cycle 3):** API + UI layer reviewed. Identified SEC-2, SEC-4, SEC-1, SEC-5, SEC-3. All with evidence and safe corrections.

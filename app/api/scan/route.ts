@@ -1,7 +1,8 @@
 import { buildReport } from '@/lib/scanner/engine';
 import { demoProject, DEMO_NOTES } from '@/lib/sources/demo';
 import { loadGithubRepo, GithubError } from '@/lib/sources/github';
-import { apiError, apiOk } from '@/lib/api/respond';
+import { apiError, apiOk, apiTooManyRequests } from '@/lib/api/respond';
+import { clientKeyFrom, scanLimiter } from '@/lib/api/ratelimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,9 @@ interface ScanRequestBody {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const decision = scanLimiter.check(clientKeyFrom(request.headers));
+  if (!decision.allowed) return apiTooManyRequests(decision.retryAfterSec);
+
   let body: ScanRequestBody;
   try {
     body = (await request.json()) as ScanRequestBody;

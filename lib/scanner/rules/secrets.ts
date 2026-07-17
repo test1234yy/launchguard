@@ -163,6 +163,137 @@ export const privateKeyFile: Rule = {
   },
 };
 
-export const secretRules: Rule[] = [committedEnvFile, hardcodedSecret, secretAssignment, privateKeyFile];
+const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/g;
+
+/** SEC005: literal JWT tokens committed in tracked files. */
+export const committedJwt: Rule = {
+  id: 'SEC005',
+  title: 'JSON Web Token committed to the repository',
+  severity: 'high',
+  category: 'secrets',
+  description: 'A signed JWT grants whatever access it encodes until it expires; committed tokens must be treated as leaked.',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of secretScanTargets(project)) {
+      const text = scannableText(file);
+      JWT_PATTERN.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = JWT_PATTERN.exec(text)) !== null) {
+        matches.push({
+          file: file.path,
+          line: lineAt(text, m.index),
+          evidence: `JWT: ${maskValue(m[0])}`,
+          remediation:
+            'Revoke the token (or wait out its expiry while assuming compromise), remove it from the repository and git history, and issue tokens at runtime instead of committing them.',
+        });
+        if (matches.length >= 15) return matches;
+      }
+    }
+    return matches;
+  },
+};
+
+const WEBHOOK_PATTERNS: SecretPattern[] = [
+  { name: 'Slack incoming webhook', regex: /https:\/\/hooks\.slack\.com\/services\/T[A-Za-z0-9_/]{8,}/g },
+  { name: 'Discord webhook', regex: /https:\/\/discord(?:app)?\.com\/api\/webhooks\/\d{10,}\/[A-Za-z0-9_-]{30,}/g },
+  { name: 'Microsoft Teams webhook', regex: /https:\/\/[a-z0-9-]+\.webhook\.office\.com\/[^\s'"`)]{10,}/gi },
+];
+
+/** SEC006: chat webhook URLs committed — they are bearer credentials. */
+export const committedWebhookUrl: Rule = {
+  id: 'SEC006',
+  title: 'Chat webhook URL committed to the repository',
+  severity: 'high',
+  category: 'secrets',
+  description: 'Slack/Discord/Teams webhook URLs let anyone who has them post as your integration; they are secrets.',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of secretScanTargets(project)) {
+      const text = scannableText(file);
+      for (const { name, regex } of WEBHOOK_PATTERNS) {
+        regex.lastIndex = 0;
+        let m: RegExpExecArray | null;
+        while ((m = regex.exec(text)) !== null) {
+          matches.push({
+            file: file.path,
+            line: lineAt(text, m.index),
+            evidence: `${name}: ${maskValue(m[0])}`,
+            remediation: `Regenerate this ${name.toLowerCase()} in the provider's admin console, store the new URL in an environment variable, and purge the old one from git history.`,
+          });
+          if (matches.length >= 10) return matches;
+        }
+      }
+    }
+    return matches;
+  },
+};
+
+/** SEC007: well-known credential files (cloud CLIs, npm, service accounts). */
+export const credentialFiles: Rule = {
+  id: 'SEC007',
+  title: 'Cloud or registry credential file committed',
+  severity: 'critical',
+  category: 'secrets',
+  description: 'Files like .aws/credentials, .netrc, authenticated .npmrc or GCP service-account keys are live credentials.',
+  check(project) {
+    const matches: RuleMatch[] = [];
+    for (const file of project.files) {
+      if (isInNodeModules(file.path)) continue;
+      const name = baseName(file.path).toLowerCase();
+      const path = file.path.toLowerCase();
+
+      if (path === '.aws/credentials' || path.endsWith('/.aws/credentials')) {
+        matches.push({
+          file: file.path,
+          evidence: `AWS credentials file "${file.path}" is tracked in the repository.`,
+          remediation: 'Remove the file, rotate the AWS keys it contains, and rely on environment variables or an instance role.',
+        });
+      } else if (name === '.netrc' || name === '_netrc') {
+        matches.push({
+          file: file.path,
+          severity: 'high',
+          evidence: `"${file.path}" stores machine logins/passwords in plaintext.`,
+          remediation: 'Remove the .netrc from version control and rotate every credential it lists.',
+        });
+      } else if (path === '.kube/config' || path.endsWith('/.kube/config')) {
+        matches.push({
+          file: file.path,
+          severity: 'high',
+          evidence: `kubeconfig "${file.path}" is tracked; it typically embeds cluster tokens or client keys.`,
+          remediation: 'Remove the kubeconfig, rotate the cluster credentials, and distribute configs out of band.',
+        });
+      } else if (name === '.npmrc' && !file.binary && /_authToken|_password\s*=/.test(file.content)) {
+        matches.push({
+          file: file.path,
+          evidence: `${file.path} contains a registry auth token (_authToken/_password).`,
+          remediation: 'Strip the token from .npmrc (use ${NPM_TOKEN} substitution), rotate it, and inject it via CI secrets.',
+        });
+      } else if (
+        name.endsWith('.json') &&
+        !file.binary &&
+        file.content.includes('"type": "service_account"') &&
+        file.content.includes('"private_key"')
+      ) {
+        matches.push({
+          file: file.path,
+          evidence: `"${file.path}" looks like a Google Cloud service-account key (type: service_account with private_key).`,
+          remediation: 'Delete the key file, revoke the service-account key in GCP IAM, and use workload identity or runtime secret injection.',
+        });
+      }
+      if (matches.length >= 10) break;
+    }
+    return matches;
+  },
+};
+
+export const secretRules: Rule[] = [
+  committedEnvFile,
+  hardcodedSecret,
+  secretAssignment,
+  privateKeyFile,
+  committedJwt,
+  committedWebhookUrl,
+  credentialFiles,
+];
 
 export { isEnvExample, isEnvFile };

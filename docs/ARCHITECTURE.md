@@ -10,23 +10,28 @@ browser. This document explains the major pieces and the data flow.
                  ┌─────────────────────────────────────────────┐
    Browser       │  app/page.tsx (client dashboard)            │
    ───────►      │   • ScanForm  → POST /api/scan | /api/upload │
-                 │   • ScoreGauge / SummaryCards / Findings     │
+                 │   • ScoreGauge (Δ vs last scan) / Summary    │
+                 │   • InsightsPanel (projections, quick wins)  │
+                 │   • FindingsPanel (filter/sort/expand)       │
                  │   • FixPlanPanel → POST /api/fix-plan        │
-                 │   • Markdown / JSON export (client-side)     │
+                 │   • Exports: MD/JSON/CSV/XML/SARIF/HTML/SVG  │
+                 │   • RuleCatalog · HistoryPanel (localStorage)│
                  └───────────────┬─────────────────────────────┘
                                  │ JSON over fetch
                  ┌───────────────▼─────────────────────────────┐
    Server        │  app/api/* route handlers (Node runtime)    │
-   (Next.js)     │   scan   → demo | github source             │
-                 │   upload → safe zip source                  │
-                 │   fix-plan → OpenAI or deterministic         │
+   (Next.js)     │   scan   → demo | github source  (rate-lim) │
+                 │   upload → safe zip source       (rate-lim) │
+                 │   fix-plan → OpenAI or deterministic (r-l)  │
+                 │   rules | health | badge (GET utilities)    │
                  └───────────────┬─────────────────────────────┘
                                  │ ProjectSnapshot
                  ┌───────────────▼─────────────────────────────┐
                  │  lib/scanner (pure, deterministic)          │
+                 │   config → in-repo launchguard.config.json  │
                  │   engine.runRules → rules/* → Finding[]     │
                  │   score.computeScore → 0–100                │
-                 │   redact → mask secrets in evidence         │
+                 │   fingerprint · insights · redact           │
                  └─────────────────────────────────────────────┘
 ```
 
@@ -41,11 +46,21 @@ browser. This document explains the major pieces and the data flow.
   network, filesystem, or evaluate code. `rules/index.ts` aggregates and sorts
   them by id.
 - **`engine.ts`** — runs every rule (guarding against a rule throwing on hostile
-  input), redacts evidence, sorts findings by severity, and assembles a
-  `ScanReport`.
+  input), applies the in-repo scan config, redacts evidence, sorts findings by
+  severity, and assembles a `ScanReport` (including duration, fingerprint,
+  file-type breakdown and suppression counts).
+- **`config.ts`** — parses an optional `launchguard.config.json` from the
+  scanned project (`ignoreRules`, `minSeverity`). Treated as untrusted data:
+  validated defensively, capped, and every effect is disclosed via report notes.
 - **`score.ts`** — the readiness score. Starts at 100 and subtracts a
   severity-weighted penalty per finding, capping how much any single rule can
   subtract so one noisy rule can’t dominate the score.
+- **`insights.ts`** — pure derivations for the dashboard: per-rule remediation
+  **effort** (quick/moderate/involved), **projected scores** (“fix all criticals
+  → N”), **quick wins**, and the file-type breakdown.
+- **`fingerprint.ts`** — FNV-1a content hash over findings + score. Identical
+  scan content yields an identical fingerprint (unlike the per-run report id),
+  which powers history deduplication and change detection.
 - **`redact.ts`** — the redaction layer. Masks well-known token formats,
   connection-string credentials, private keys and secret-named assignments, while
   leaving obvious placeholders readable. Idempotent.
@@ -78,34 +93,64 @@ deterministic: the same snapshot always yields the same report.
 
 ### `lib/report` — exports
 
-- **`export.ts`** — `reportToJson` and `reportToMarkdown`. Exports are generated
-  in the browser from the report the client already holds.
+- **`export.ts`** — `reportToJson`, `reportToMarkdown`, `reportToCsv`,
+  `reportToXml`. Exports are generated in the browser from the report the client
+  already holds.
+- **`sarif.ts`** — SARIF 2.1.0 output (severity → error/warning/note mapping,
+  per-rule metadata, physical locations) for GitHub code scanning and SARIF
+  viewers.
+- **`html.ts`** — a self-contained, script-free HTML report (inline CSS,
+  escaped content) suitable for tickets, email and printing.
+- **`badge.ts`** — a shields-style readiness badge as an SVG string, shared by
+  the client download and `GET /api/badge`.
+
+### `lib/api` — route plumbing
+
+- **`respond.ts`** — the `{ ok, ... }` envelope helpers, including 429 responses
+  with `Retry-After`.
+- **`ratelimit.ts`** — a dependency-free fixed-window in-memory rate limiter
+  (injectable clock for tests) plus shared per-route limiter instances keyed by
+  client IP.
 
 ### `app/api` — route handlers
 
 All routes use the Node.js runtime and return a consistent
-`{ ok, ... } | { ok: false, error }` envelope (`lib/api/respond.ts`).
+`{ ok, ... } | { ok: false, error }` envelope (`lib/api/respond.ts`). The three
+POST routes are rate limited per client.
 
 - **`POST /api/scan`** — `{ mode: 'demo' }` or `{ mode: 'github', url }`.
 - **`POST /api/upload`** — `multipart/form-data` with a `file` field (`.zip`).
 - **`POST /api/fix-plan`** — `{ report }` → `{ plan }`.
+- **`GET /api/rules`** — the machine-readable rule catalog.
+- **`GET /api/health`** — liveness probe (status, version, rule count, uptime).
+- **`GET /api/badge?score=NN`** — readiness badge as `image/svg+xml`.
 
 ### `app` + `components` — the dashboard
 
-`app/page.tsx` is a client component holding the current report in React state.
-Presentational pieces live in `components/`: `ScanForm` (demo/GitHub/ZIP tabs),
-`ScoreGauge` (SVG arc), `SummaryCards`, `FindingsPanel` (severity/category/text
-filters + expandable findings) and `FixPlanPanel` (fix-plan generation + exports).
-Styling is a hand-written design system in `app/globals.css` (no UI framework).
+`app/page.tsx` is a client component holding the current report, scan history
+and score delta in React state. Presentational pieces live in `components/`:
+`ScanForm` (demo/GitHub/ZIP tabs), `ScoreGauge` (SVG arc + delta vs last scan),
+`SummaryCards`, `InsightsPanel` (projected scores, quick wins, file types),
+`FindingsPanel` (severity/category/text filters, sorting, expand/collapse all,
+`/` shortcut), `FixPlanPanel` (fix-plan generation, seven export formats, copy
+summary, print), `RuleCatalog` (the full rule list) and `HistoryPanel` (recent
+scans from localStorage). Styling is a hand-written design system in
+`app/globals.css` (no UI framework) with dark/light themes (`lib/ui/theme.tsx`)
+and print styles.
 
 ## Testing
 
-- **Unit** (`tests/unit`) — redaction, scoring, path-safety, GitHub URL parsing
-  and every rule.
+- **Unit** (`tests/unit`) — redaction, scoring, path-safety, GitHub URL parsing,
+  every rule (including the quality wave), scan config parsing, insights
+  (effort/projections/quick wins), fingerprints, exports (SARIF/HTML/badge/CSV/
+  XML), the rate limiter and history list operations.
 - **Integration** (`tests/integration`) — the engine end-to-end on the demo
-  project, in-memory ZIP loading, exports and the fix-plan fallback.
+  project (including in-repo config suppression), in-memory ZIP loading, exports,
+  the fix-plan fallback, and the API route handlers invoked as plain functions
+  (rules/health/badge/scan/fix-plan, including the 429 path).
 - **E2E** (`e2e/smoke.spec.ts`) — Playwright drives the built app: demo scan,
-  filters and fix-plan generation.
+  filters, sorting, expand/collapse, insights, rule catalog, exports (download),
+  scan history + delta, keyboard shortcut and the GET API endpoints.
 
 CI (`.github/workflows/ci.yml`) runs lint → typecheck → test → build → Playwright
 on Node 20 for every push and PR to `main`.

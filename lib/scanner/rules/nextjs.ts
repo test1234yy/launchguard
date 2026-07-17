@@ -1,5 +1,6 @@
 import type { Rule, RuleMatch, Severity } from '../types';
-import { eachLine, isRootFile, scannableText, secretScanTargets } from './helpers';
+import { eachLine, getRootPackageJson, isRootFile, scannableText, secretScanTargets } from './helpers';
+import { dockerfiles } from './docker';
 
 function nextConfigFiles(project: Parameters<Rule['check']>[0]) {
   return project.files.filter(
@@ -110,4 +111,31 @@ export const browserSourceMaps: Rule = {
   },
 };
 
-export const nextjsRules: Rule[] = [nextIgnoresBuildErrors, publicEnvLeak, browserSourceMaps];
+/** NXT004: dockerized Next.js app without output: 'standalone'. */
+export const missingStandaloneOutput: Rule = {
+  id: 'NXT004',
+  title: "Dockerized Next.js app without output: 'standalone'",
+  severity: 'low',
+  category: 'nextjs',
+  description:
+    "Without output: 'standalone', a Next.js Docker image needs the full node_modules tree and often breaks at runtime.",
+  check(project) {
+    if (dockerfiles(project).length === 0) return [];
+    const pkg = getRootPackageJson(project);
+    if (!pkg?.pkg.dependencies?.next) return [];
+    const configs = nextConfigFiles(project);
+    if (configs.length === 0) return [];
+    const hasStandalone = configs.some((c) => /output\s*:\s*['"]standalone['"]/.test(c.content));
+    if (hasStandalone) return [];
+    return [
+      {
+        file: configs[0].path,
+        evidence: `${configs[0].path} does not set output: 'standalone' although the project ships a Dockerfile.`,
+        remediation:
+          "Set output: 'standalone' in next.config and copy .next/standalone into the image for a small, self-contained runtime.",
+      },
+    ];
+  },
+};
+
+export const nextjsRules: Rule[] = [nextIgnoresBuildErrors, publicEnvLeak, browserSourceMaps, missingStandaloneOutput];

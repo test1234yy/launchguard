@@ -22,7 +22,7 @@ describe('rule set', () => {
 
   it('covers every documented category', () => {
     const categories = new Set(ALL_RULES.map((r) => r.category));
-    for (const c of ['secrets', 'environment', 'dependencies', 'ci', 'docker', 'prisma', 'nextjs', 'configuration']) {
+    for (const c of ['secrets', 'environment', 'dependencies', 'ci', 'docker', 'prisma', 'nextjs', 'configuration', 'quality']) {
       expect(categories.has(c as never)).toBe(true);
     }
   });
