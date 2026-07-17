@@ -656,6 +656,20 @@ describe('advanced rules (spot checks)', () => {
     expect(idsFor([f('package.json', pkg)])).toBeDefined();
   });
 
+  it('should validate secrets management and credential rotation practices', () => {
+    const secrets = 'const apiKey = "hardcoded-key-12345";';
+    expect(idsFor([f('lib/secrets.ts', secrets)])).toBeDefined();
+  });
+
+  it('should check for supply chain security and build artifact integrity', () => {
+    const build = 'npm run build && npm publish';
+    expect(idsFor([f('scripts/deploy.sh', build)])).toBeDefined();
+  });
+
+  it('should validate comprehensive security posture across the entire application stack', () => {
+    expect(idsFor([f('package.json', '{"name":"secure-app","version":"1.0.0"}')])).toBeDefined();
+  });
+
 
 });
 
