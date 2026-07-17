@@ -1072,3 +1072,272 @@ h3 {
     margin-top: 0;
   }
 }
+
+/* ---------- Accessibility ---------- */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 100;
+  padding: 10px 16px;
+  background: var(--accent-strong);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 12px;
+  text-decoration: none;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* A single, consistent keyboard-focus ring across all interactive elements.
+   Uses :focus-visible so it appears for keyboard users, not on mouse click. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.tab:focus-visible,
+.chip:focus-visible {
+  outline-offset: 1px;
+}
+
+/* Respect users who ask for less motion: drop animations and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- Keyboard shortcut hint ---------- */
+.site-footer .shortcut-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+kbd {
+  display: inline-block;
+  min-width: 1em;
+  padding: 1px 6px;
+  margin: 0 1px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+}
+
+/* ---------- Compare panel ---------- */
+.compare-panel {
+  margin-top: 4px;
+}
+.diff-body {
+  margin-top: 18px;
+  display: grid;
+  gap: 18px;
+}
+.diff-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+}
+.diff-summary-line {
+  font-weight: 600;
+}
+.diff-base-name {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+.diff-scores {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.diff-score-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 20px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.diff-score-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+.diff-score-num {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.diff-arrow {
+  font-size: 1.4rem;
+  color: var(--text-dim);
+}
+.diff-table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 460px;
+}
+.diff-table th,
+.diff-table td {
+  text-align: left;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+.diff-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.diff-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+.diff-list-col h3 {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+.diff-added-head {
+  color: var(--critical);
+}
+.diff-removed-head {
+  color: var(--low);
+}
+.diff-empty {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.diff-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+.diff-finding {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+.diff-finding.added {
+  border-left-color: var(--critical);
+}
+.diff-finding.removed {
+  border-left-color: var(--low);
+}
+.diff-finding-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.diff-finding-title {
+  font-size: 0.86rem;
+  font-weight: 550;
+}
+.diff-finding-file {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+  .site-header .inner {
+    padding: 14px 16px;
+  }
+  .hero {
+    padding: 36px 0 20px;
+  }
+  .card-pad {
+    padding: 18px 16px;
+  }
+  /* Stack the scan-source tabs so labels never truncate or overflow. */
+  .tabs {
+    flex-direction: column;
+  }
+  .tab {
+    width: 100%;
+    min-height: 44px;
+  }
+  /* Field + button stack full-width; keeps 44px tap targets. */
+  .field-row {
+    flex-direction: column;
+  }
+  .field-row .btn {
+    width: 100%;
+  }
+  /* Comfortable tap targets on small screens (WCAG 2.5.5). */
+  .btn-sm {
+    min-height: 40px;
+  }
+  .chip {
+    min-height: 36px;
+  }
+  .toolbar {
+    gap: 10px;
+  }
+  .toolbar-actions {
+    width: 100%;
+  }
+  .toolbar-actions .btn {
+    flex: 1;
+  }
+  /* Export buttons wrap into an even grid instead of a cramped row. */
+  .export-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .export-row .export-label {
+    grid-column: 1 / -1;
+  }
+  .diff-scores {
+    justify-content: space-between;
+  }
+  .finding-sub {
+    gap: 6px;
+  }
+}
+
+/* Extra-small phones: single-column export grid. */
+@media (max-width: 380px) {
+  .export-row {
+    grid-template-columns: 1fr;
+  }
+}
