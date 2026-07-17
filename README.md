@@ -155,12 +155,14 @@ npm run test:e2e
 | DEP004 | dependencies | high | Known-compromised / deprecated packages |
 | DEP005 | dependencies | low | Node.js version not pinned |
 | DEP006 | dependencies | low | Same package in `dependencies` and `devDependencies` |
+| DEP007 | dependencies | medium | Dependency missing from the committed lockfile (drift) |
 | CI001 | ci | medium | No CI configuration |
 | CI002 | ci | medium | No meaningful test script |
 | CI003 | ci | low | CI never runs tests |
 | CI004 | ci | medium | GitHub Actions pinned to mutable refs (`@main`, `@master`, none) |
 | CI005 | ci | high | `pull_request_target` workflow checks out untrusted PR code |
 | CI006 | ci | medium | No test files anywhere in the project |
+| CI007 | ci | high | Workflow echoes secrets into the build log |
 | DOC001 | docker | medium | Unpinned base image (`:latest`) |
 | DOC002 | docker | medium | Container runs as root |
 | DOC003 | docker | high | Build may copy secrets / no `.dockerignore` |
@@ -198,6 +200,7 @@ npm run test:e2e
 | QUA006 | quality | info | Heavy `console.log` usage |
 | QUA007 | quality | info | High density of TODO/FIXME markers |
 | QUA008 | quality | low | Very large files (> 2 MB) committed |
+| QUA009 | quality | low | Build artifacts or OS junk files committed (*.map, *.tsbuildinfo, .DS_Store) |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the scanner, sources and API fit together.
 
